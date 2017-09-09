@@ -13,37 +13,41 @@ public protocol Notifier {
 
 public extension Notifier {
     
-    // MARK: - Static Computed Variables
+    // MARK: - Static Computed Properties
     
     private static func name(forAddress address: String, notification: Notification) -> NSNotification.Name {
         return NSNotification.Name(rawValue: "\(self).\(address).\(notification.rawValue)")
     }
     
-    // MARK: - Instance Methods
-    
-    func postNotification(_ notification: Notification, object: Any? = nil, userInfo: [String : Any]? = nil) {
-        Self.postNotification(notification, forAddress: address, object: object, userInfo: userInfo)
-    }
-    
     // MARK: - Static Function
-    
-    static func postNotification(_ notification: Notification, forAddress address: String, object: Any? = nil, userInfo: [String : Any]? = nil) {
-        let notificationName = name(forAddress: address, notification: notification)
-        NotificationCenter.default.post(name: notificationName, object: object, userInfo: userInfo)
-    }
-    
-    // Add Listeners
     
     static func addObserver(_ observer: Any, forAddress address: String, notification: Notification, completion: @escaping (Foundation.Notification) -> Void) {
         let notificationName = name(forAddress: address, notification: notification)
         NotificationCenter.default.addObserver(forName: notificationName, object: nil, queue: nil, using: completion)
     }
     
-    // Remove Listeners
+    static func postNotification(_ notification: Notification, forAddress address: String, object: Any? = nil, userInfo: [String : Any]? = nil) {
+        let notificationName = name(forAddress: address, notification: notification)
+        NotificationCenter.default.post(name: notificationName, object: object, userInfo: userInfo)
+    }
     
     static func removeObserver(_ observer: Any, forAddress address: String, notification: Notification, object: Any? = nil) {
         let notificationName = name(forAddress: address, notification: notification)
         NotificationCenter.default.removeObserver(observer, name: notificationName, object: object)
+    }
+    
+    // MARK: - Instance Methods
+    
+    func addObserver(_ observer: Any, notification: Notification, completion: @escaping (Foundation.Notification) -> Void) {
+        Self.addObserver(observer, forAddress: address, notification: notification, completion: completion)
+    }
+    
+    func postNotification(_ notification: Notification, object: Any? = nil, userInfo: [String : Any]? = nil) {
+        Self.postNotification(notification, forAddress: address, object: object, userInfo: userInfo)
+    }
+    
+    func removeObserver(_ observer: Any, notification: Notification, object: Any? = nil) {
+        Self.removeObserver(observer, forAddress: address, notification: notification, object: object)
     }
 }
 
@@ -82,12 +86,7 @@ class Airbus: Plane, Notifier {
     }
 }
 
-protocol ATC {
-    func planeDidTakeOff(_ plane: Plane)
-    func planeDidLand(_ plane: Plane)
-}
-
-class Airport: ATC {
+class Airport {
     init(model: String) {
         addObserver(forModel: model)
     }
@@ -99,19 +98,17 @@ class Airport: ATC {
     }
     
     func addObserver(forModel model: String) {
-        Airbus.addObserver(self, forAddress: model, notification: .didTakeOff) { (notification) in
-            if let plane = notification.object as? Plane { self.planeDidTakeOff(plane) }
-        }
-        Airbus.addObserver(self, forAddress: model, notification: .didLand) { (notification) in
-            if let plane = notification.object as? Plane { self.planeDidLand(plane) }
-        }
+        Airbus.addObserver(self, forAddress: model, notification: .didTakeOff, completion: handleTakeOff)
+        Airbus.addObserver(self, forAddress: model, notification: .didLand, completion: handleLand)
     }
     
-    func planeDidTakeOff(_ plane: Plane) {
+    func handleTakeOff(notification: Notification) {
+        guard let plane = notification.object as? Plane else { return }
         print("Airport: \(plane.model) is taking off")
     }
     
-    func planeDidLand(_ plane: Plane) {
+    func handleLand(notification: Notification) {
+        guard let plane = notification.object as? Plane else { return }
         print("Airport: \(plane.model) landed")
     }
 }
